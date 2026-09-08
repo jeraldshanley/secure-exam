@@ -1,8 +1,9 @@
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { JwtService } from '@nestjs/jwt';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -14,11 +15,16 @@ describe('AuthService', () => {
     },
   };
 
+  const mockJwtService = {
+    signAsync: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: JwtService, useValue: mockJwtService },
       ],
     }).compile();
 
@@ -73,6 +79,48 @@ describe('AuthService', () => {
       mockPrisma.user.findUnique.mockResolvedValue({ id: 'existing-uuid' });
 
       await expect(service.register(dto)).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('login', () => {
+    const dto = { email: 'jane@example.com', password: 'securepass' };
+
+    it('should return token and user without passwordHash on successful login', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: 'uuid-1',
+        name: 'Jane Doe',
+        email: dto.email,
+        passwordHash: await bcrypt.hash(dto.password, 10),
+        role: 'student',
+      });
+      mockJwtService.signAsync.mockResolvedValue('mock-jwt-token');
+
+      const result = await service.login(dto);
+
+      expect(mockJwtService.signAsync).toHaveBeenCalledWith({ sub: 'uuid-1', role: 'student' });
+      expect(result).toEqual({
+        accessToken: 'mock-jwt-token',
+        user: { id: 'uuid-1', name: 'Jane Doe', email: dto.email, role: 'student' },
+      });
+      expect(result.user).not.toHaveProperty('passwordHash');
+    });
+
+    it('should throw UnauthorizedException if password does not match', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: 'uuid-1',
+        name: 'Jane Doe',
+        email: dto.email,
+        passwordHash: await bcrypt.hash('wrongpass', 10),
+        role: 'student',
+      });
+
+      await expect(service.login(dto)).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException if email is not found', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(service.login(dto)).rejects.toThrow(UnauthorizedException);
     });
   });
 });

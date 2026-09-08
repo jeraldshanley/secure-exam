@@ -8,6 +8,7 @@ describe('AuthController', () => {
 
   const mockAuthService = {
     register: jest.fn(),
+    login: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -40,6 +41,23 @@ describe('AuthController', () => {
       const result = await controller.register(dto);
 
       expect(authService.register).toHaveBeenCalledWith(dto);
+      expect(result).toEqual(expected);
+    });
+  });
+
+  describe('login', () => {
+    it('should delegate to AuthService.login()', async () => {
+      const dto = { email: 'test@example.com', password: 'password123' };
+      const expected = {
+        accessToken: 'token',
+        user: { id: 'uuid-1', name: 'Test', email: 'test@example.com', role: 'student' },
+      };
+
+      mockAuthService.login.mockResolvedValue(expected);
+
+      const result = await controller.login(dto);
+
+      expect(authService.login).toHaveBeenCalledWith(dto);
       expect(result).toEqual(expected);
     });
   });
