@@ -17,10 +17,21 @@ model User {
 }
 
 model Exam {
-  id        String   @id @default(uuid())
+  id        String     @id @default(uuid())
   title     String
   duration  Int
-  status    String   @default("draft")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  status    String     @default("draft")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  questions Question[]
+}
+
+model Question {
+  id           String   @id @default(uuid())
+  examId       String
+  questionText String
+  options      String[]
+  correctOption Int
+  createdAt    DateTime @default(now())
+  exam         Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
 }
