@@ -8,12 +8,13 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   name         String
-  email        String   @unique
+  email        String    @unique
   passwordHash String
-  role         String   @default("student")
-  createdAt    DateTime @default(now())
+  role         String    @default("student")
+  createdAt    DateTime  @default(now())
+  attempts     Attempt[]
 }
 
 model Exam {
@@ -24,14 +25,40 @@ model Exam {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   questions Question[]
+  attempts  Attempt[]
 }
 
 model Question {
-  id           String   @id @default(uuid())
-  examId       String
-  questionText String
-  options      String[]
+  id            String   @id @default(uuid())
+  examId        String
+  questionText  String
+  options       String[]
   correctOption Int
-  createdAt    DateTime @default(now())
-  exam         Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  exam          Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  answers       Answer[]
+}
+
+model Attempt {
+  id          String    @id @default(uuid())
+  userId      String
+  examId      String
+  status      String    @default("in_progress")
+  startedAt   DateTime  @default(now())
+  submittedAt DateTime?
+  score       Int?
+  user        User      @relation(fields: [userId], references: [id])
+  exam        Exam      @relation(fields: [examId], references: [id])
+  answers     Answer[]
+}
+
+model Answer {
+  id             String   @id @default(uuid())
+  attemptId      String
+  questionId     String
+  selectedOption Int
+  attempt        Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question       Question @relation(fields: [questionId], references: [id])
+
+  @@unique([attemptId, questionId])
 }
